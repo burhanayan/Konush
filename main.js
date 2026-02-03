@@ -1,4 +1,4 @@
-const { app, globalShortcut, ipcMain, BrowserWindow } = require('electron');
+const { app, globalShortcut, ipcMain, BrowserWindow, screen } = require('electron');
 const path = require('path');
 const { uIOhook, UiohookKey } = require('uiohook-napi');
 const TrayManager = require('./src/tray');
@@ -16,6 +16,7 @@ class KonusApp {
         this.autostart = null;
         this.recorderWindow = null;
         this.settingsWindow = null;
+        this.overlayWindow = null;
 
         this.isListening = true;
         this.isRecording = false;
@@ -67,6 +68,49 @@ class KonusApp {
         });
 
         await this.recorderWindow.loadFile(path.join(__dirname, 'renderer', 'recorder.html'));
+    }
+
+    showOverlay() {
+        if (this.overlayWindow) {
+            this.overlayWindow.show();
+            return;
+        }
+
+        const primaryDisplay = screen.getPrimaryDisplay();
+        const { width, height } = primaryDisplay.workAreaSize;
+        const overlayWidth = 240;
+        const overlayHeight = 120;
+
+        this.overlayWindow = new BrowserWindow({
+            width: overlayWidth,
+            height: overlayHeight,
+            x: Math.round((width - overlayWidth) / 2),
+            y: Math.round((height - overlayHeight) / 2),
+            frame: false,
+            transparent: true,
+            alwaysOnTop: true,
+            skipTaskbar: true,
+            resizable: false,
+            focusable: false,
+            webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true
+            }
+        });
+
+        this.overlayWindow.setIgnoreMouseEvents(true);
+        this.overlayWindow.loadFile(path.join(__dirname, 'renderer', 'overlay.html'));
+
+        this.overlayWindow.on('closed', () => {
+            this.overlayWindow = null;
+        });
+    }
+
+    hideOverlay() {
+        if (this.overlayWindow) {
+            this.overlayWindow.destroy();
+            this.overlayWindow = null;
+        }
     }
 
     setupHotkey() {
@@ -158,6 +202,7 @@ class KonusApp {
         this.isRecording = true;
         this.recordingStartTime = Date.now();
         this.tray.updateIcon();
+        this.showOverlay();
 
         this.recorderWindow.webContents.send('start-recording');
     }
@@ -171,6 +216,7 @@ class KonusApp {
         console.log(`Stopping recording... (duration: ${recordingDuration}ms)`);
         this.isRecording = false;
         this.tray.updateIcon();
+        this.hideOverlay();
 
         if (recordingDuration < MIN_RECORDING_MS) {
             console.log('Recording too short, discarding');
@@ -239,6 +285,9 @@ class KonusApp {
         }
         if (this.recorderWindow) {
             this.recorderWindow.destroy();
+        }
+        if (this.overlayWindow) {
+            this.overlayWindow.destroy();
         }
         app.quit();
     }
