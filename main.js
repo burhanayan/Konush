@@ -179,6 +179,16 @@ class KonusApp {
             this.config.set(key, value);
         });
 
+        ipcMain.on('window-minimize', (event) => {
+            const win = BrowserWindow.fromWebContents(event.sender);
+            if (win) win.minimize();
+        });
+
+        ipcMain.on('window-close', (event) => {
+            const win = BrowserWindow.fromWebContents(event.sender);
+            if (win) win.close();
+        });
+
         ipcMain.on('recording-data', async (event, audioData) => {
             if (audioData && audioData.length > 0) {
                 console.log('Received audio data, transcribing...');
@@ -260,8 +270,10 @@ class KonusApp {
 
         this.settingsWindow = new BrowserWindow({
             width: 500,
-            //height: 400,
+            height: 420,
             resizable: false,
+            frame: false,
+            backgroundColor: '#1e1e1e',
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,

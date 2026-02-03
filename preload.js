@@ -6,5 +6,7 @@ contextBridge.exposeInMainWorld('konus', {
     sendRecordingData: (data) => ipcRenderer.send('recording-data', data),
     onStartRecording: (callback) => ipcRenderer.on('start-recording', callback),
     onStopRecording: (callback) => ipcRenderer.on('stop-recording', callback),
-    onCancelRecording: (callback) => ipcRenderer.on('cancel-recording', callback)
+    onCancelRecording: (callback) => ipcRenderer.on('cancel-recording', callback),
+    windowMinimize: () => ipcRenderer.send('window-minimize'),
+    windowClose: () => ipcRenderer.send('window-close')
 });
