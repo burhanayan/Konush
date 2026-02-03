@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Recorder</title>
+</head>
+<body>
+    <script>
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let stream = null;
+        let isCancelled = false;
+
+        async function startRecording() {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        channelCount: 1,
+                        sampleRate: 16000,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+
+                audioChunks = [];
+                isCancelled = false;
+
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    // Stop all tracks first
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                        stream = null;
+                    }
+
+                    // Don't send if cancelled
+                    if (isCancelled) {
+                        console.log('Recording was cancelled, not sending data');
+                        audioChunks = [];
+                        return;
+                    }
+
+                    if (audioChunks.length > 0) {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const arrayBuffer = await audioBlob.arrayBuffer();
+                        const uint8Array = new Uint8Array(arrayBuffer);
+                        window.konus.sendRecordingData(Array.from(uint8Array));
+                    }
+                };
+
+                mediaRecorder.start(100);
+                console.log('Recording started');
+            } catch (error) {
+                console.error('Failed to start recording:', error);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                console.log('Recording stopped');
+            }
+        }
+
+        function cancelRecording() {
+            isCancelled = true;
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                console.log('Recording cancelled');
+            }
+        }
+
+        // Listen for commands from main process
+        window.konus.onStartRecording(() => {
+            startRecording();
+        });
+
+        window.konus.onStopRecording(() => {
+            stopRecording();
+        });
+
+        window.konus.onCancelRecording(() => {
+            cancelRecording();
+        });
+
+        console.log('Recorder ready');
+    </script>
+</body>
+</html>

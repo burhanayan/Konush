@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konuş - Settings</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #1e1e1e;
+            color: #ffffff;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+        .setting-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #444;
+            background-color: #2d2d2d;
+            color: #fff;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .hotkey-config {
+            display: flex;
+            gap: 10px;
+        }
+        .hotkey-config select {
+            flex: 1;
+        }
+        button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #106ebe;
+        }
+        .info {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .status {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .status.success {
+            background-color: #1a472a;
+            color: #4caf50;
+            display: block;
+        }
+        .status.error {
+            background-color: #4a1a1a;
+            color: #f44336;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Konuş Settings</h1>
+
+    <div class="setting-group">
+        <label for="apiKey">OpenAI API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-...">
+        <div class="info">Your API key is stored locally and never shared</div>
+    </div>
+
+    <div class="setting-group">
+        <label for="language">Language</label>
+        <select id="language">
+            <option value="auto">Auto Detect</option>
+            <option value="tr">Turkish</option>
+            <option value="en">English</option>
+            <option value="de">German</option>
+        </select>
+    </div>
+
+    <div class="setting-group">
+        <label>Hotkey (Hold to Record)</label>
+        <div class="hotkey-config">
+            <select id="hotkeyModifier">
+                <option value="Alt">Left Alt</option>
+                <option value="AltRight">AltGr (Right Alt)</option>
+                <option value="Ctrl">Ctrl</option>
+                <option value="CtrlRight">Right Ctrl</option>
+                <option value="Shift">Shift</option>
+                <option value="ShiftRight">Right Shift</option>
+            </select>
+            <span style="line-height: 36px;">+</span>
+            <select id="hotkeyKey">
+                <option value="L">L</option>
+                <option value="K">K</option>
+                <option value="J">J</option>
+                <option value="R">R</option>
+                <option value="Space">Space</option>
+                <option value="F1">F1</option>
+                <option value="F2">F2</option>
+                <option value="F3">F3</option>
+                <option value="F4">F4</option>
+            </select>
+        </div>
+        <div class="info">Press and hold this key combination to record audio</div>
+    </div>
+
+    <button id="saveBtn">Save Settings</button>
+
+    <div class="status" id="status"></div>
+
+    <script>
+        let currentConfig = {};
+
+        // Load current settings
+        (async () => {
+            try {
+                currentConfig = await window.konus.getConfig();
+
+                if (currentConfig.openai_api_key) {
+                    document.getElementById('apiKey').value = currentConfig.openai_api_key;
+                }
+
+                if (currentConfig.language) {
+                    document.getElementById('language').value = currentConfig.language;
+                }
+
+                if (currentConfig.hotkey) {
+                    document.getElementById('hotkeyModifier').value = currentConfig.hotkey.modifier;
+                    document.getElementById('hotkeyKey').value = currentConfig.hotkey.key;
+                } else {
+                    // Default to AltGr+L
+                    document.getElementById('hotkeyModifier').value = 'AltRight';
+                    document.getElementById('hotkeyKey').value = 'L';
+                }
+            } catch (error) {
+                console.error('Failed to load config:', error);
+                showStatus('Failed to load settings', 'error');
+            }
+        })();
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+
+            if (type === 'success') {
+                setTimeout(() => {
+                    statusEl.style.display = 'none';
+                }, 3000);
+            }
+        }
+
+        document.getElementById('saveBtn').addEventListener('click', async () => {
+            try {
+                const apiKey = document.getElementById('apiKey').value.trim();
+                const language = document.getElementById('language').value;
+                const hotkeyModifier = document.getElementById('hotkeyModifier').value;
+                const hotkeyKey = document.getElementById('hotkeyKey').value;
+
+                if (apiKey) {
+                    await window.konus.setConfig('openai_api_key', apiKey);
+                }
+
+                await window.konus.setConfig('language', language);
+                await window.konus.setConfig('hotkey', {
+                    modifier: hotkeyModifier,
+                    key: hotkeyKey
+                });
+
+                showStatus('Settings saved! Please restart the application for hotkey changes to take effect.', 'success');
+            } catch (error) {
+                console.error('Failed to save settings:', error);
+                showStatus('Failed to save settings', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
